@@ -1,0 +1,74 @@
+{
+  "name": "devenv-cleaner",
+  "version": "0.1.0",
+  "description": "Scan and selectively reclaim disk space taken by development caches, dependencies and build outputs",
+  "keywords": [
+    "cli",
+    "tui",
+    "disk-space",
+    "cleanup",
+    "node_modules",
+    "cache",
+    "developer-tools",
+    "ink"
+  ],
+  "license": "MIT",
+  "author": "zexuan.peng <pengzexuan2001@gmail.com>",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "bin": {
+    "dvc": "./dist/cli.js",
+    "devenv-cleaner": "./dist/cli.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "docs",
+    "README.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "start": "node dist/cli.js",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "biome check .",
+    "lint:fix": "biome check --write .",
+    "format": "biome format --write .",
+    "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
+    "prepublishOnly": "pnpm check",
+    "prepare": "husky || true",
+    "frames": "tsx scripts/capture-frames.tsx"
+  },
+  "dependencies": {
+    "commander": "^15.0.0",
+    "fast-glob": "^3.3.3",
+    "ink": "^7.1.1",
+    "picocolors": "^1.1.1",
+    "react": "^19.3.0",
+    "zod": "^4.6.5"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.14",
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@vitest/coverage-v8": "^5.0.2",
+    "ink-testing-library": "^4.0.0",
+    "tsup": "^8.5.1",
+    "tsx": "^4.23.15",
+    "typescript": "^5.9.3",
+    "vitest": "^5.0.2"
+  }
+}

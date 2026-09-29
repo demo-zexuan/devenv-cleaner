@@ -1,0 +1,14 @@
+# pnpm 12 keeps dependency build approvals and version overrides here rather
+# than in the `pnpm` field of package.json.
+#
+# esbuild ships a platform-specific native binary that its postinstall fetches;
+# tsup and vitest both depend on it, so the build script is approved here rather
+# than through the interactive `pnpm approve-builds` prompt. This keeps a fresh
+# clone and CI working with no manual step.
+allowBuilds:
+  esbuild: true
+
+overrides:
+  # @types/node is held at the Node 22 line so the type surface matches the
+  # `engines: node >= 22` promise in package.json.
+  '@types/node': ^22.19.0

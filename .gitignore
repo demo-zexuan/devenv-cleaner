@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build output
+dist/
+*.tsbuildinfo
+
+# Test and coverage
+coverage/
+.vitest/
+*.lcov
+
+# Editor and OS noise
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
+*.swp
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+
+# DevEnvClean's own report output.
+#
+# Reports contain absolute paths from the developer's machine, which are both
+# noisy in a diff and mildly sensitive; they are regenerated on demand by
+# `dvc report export`, so they are never committed.
+.devenvclean/
+
+# Scratch space used by the smoke script and manual testing.
+tmp/
+scratch/
