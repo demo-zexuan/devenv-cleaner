@@ -7,7 +7,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        提交前请先看 [docs/requirements.md](https://github.com/zexuan.peng/devenv-cleaner/blob/main/docs/requirements.md)
+        提交前请先看 [docs/requirements.md](https://github.com/demo-zexuan/devenv-cleaner/blob/main/docs/requirements.md)
         的「边界与不做的事」一节：被明确排除的能力（例如自动上传遥测、按文件粒度删除）不会实现。
         如果你要提的是「新增一个可清理目录」，下面「建议类型」请选对应的那两项之一。
 

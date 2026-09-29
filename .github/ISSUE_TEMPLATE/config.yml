@@ -3,11 +3,11 @@
 blank_issues_enabled: false
 contact_links:
   - name: 需求规格（docs/requirements.md）
-    url: https://github.com/zexuan.peng/devenv-cleaner/blob/main/docs/requirements.md
+    url: https://github.com/demo-zexuan/devenv-cleaner/blob/main/docs/requirements.md
     about: 先看这里：功能范围、非功能需求与「不做的事」都写在需求文档里。
   - name: 技术设计（docs/design.md）
-    url: https://github.com/zexuan.peng/devenv-cleaner/blob/main/docs/design.md
+    url: https://github.com/demo-zexuan/devenv-cleaner/blob/main/docs/design.md
     about: 模块划分、扫描/清理流程、规则引擎与安全模型的设计说明。
   - name: 贡献指南（CONTRIBUTING.md）
-    url: https://github.com/zexuan.peng/devenv-cleaner/blob/main/CONTRIBUTING.md
+    url: https://github.com/demo-zexuan/devenv-cleaner/blob/main/CONTRIBUTING.md
     about: 环境搭建、pnpm check 门禁、提交信息与 DCO 签名规范。
