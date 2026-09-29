@@ -1,0 +1,26 @@
+ DevEnvClean                                                                                  0.1.0
+ confirm
+ /Users/dev/Content
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+╔══════════════════════════════════════════════════════════════════════════════════════════════════╗
+║                                         Confirm deletion                                         ║
+║                                                                                                  ║
+║ Permanently delete the selected targets?                                                         ║
+║                                          Size: 14.4 GB                                           ║
+║ targets: 3  Risk: 1  Skipped: 631                                                                ║
+║ ┌──────────────────────────────────────────────────────────────────────────────────────────────┐ ║
+║ │   12.4 GB  build         Rust Build Target      …/OpenResearch/target                        │ ║
+║ │    1.5 GB  dependencies  Node Dependencies        …/CyberStrike/node_modules                 │ ║
+║ │  477.6 MB  dependencies  Node Dependencies        …/my-mc-v2/node_modules                    │ ║
+║ └──────────────────────────────────────────────────────────────────────────────────────────────┘ ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║                                                                                                  ║
+║ [ y Delete ]  [ esc Cancel ]                                                                     ║
+╚══════════════════════════════════════════════════════════════════════════════════════════════════╝
+ this cannot be undone
+ y delete  esc cancel

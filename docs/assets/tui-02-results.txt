@@ -1,0 +1,30 @@
+ DevEnvClean                                                                                  0.1.0
+ 22.1 GB across 679 targets
+ /Users/dev/Content
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ search: _  filter: [all]  sort: size  group: layer                                 679/679 matched
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│         SIZE  RISK   AGE    RULE                   PATH                                          │
+│ ──────────────────────────────────────────────────────────────────────────────────────────────── │
+│ ●    12.4 GB  HIGH   14d    Rust Build Target      /Users/dev/Content/OpenResearch/target        │
+│ ●     1.5 GB  MEDI   15d    Node Dependencies      /Users/dev/Content/CyberStrike/node_modules   │
+│       871 MB  MEDI   4mo    Python Virtualenv      …/2-VSCode-Project/ml-learning-nt/.venv       │
+│       517 MB  MEDI   5mo    Next.js Build Output   …/2-VSCode-Project/swarm-ide/backend/.next    │
+│ ●     478 MB  MEDI   3d     Node Dependencies      /Users/dev/Content/my-mc-v2/node_modules      │
+│       469 MB   LOW   15d    Python Virtualenv      …/Content/learning-quantitative-trading/.venv │
+│       401 MB   LOW   14d    Node Dependencies      …/dev/Content/OpenResearch/ui/node_modules    │
+│       385 MB   LOW   2mo    Node Dependencies      /Users/dev/Content/netron/node_modules        │
+│       249 MB   LOW   41d    JS/TS Build Output     /Users/dev/Content/api-server/dist            │
+│       122 MB   LOW   7mo    Project Cache Directo… /Users/dev/Content/dashboard/.cache           │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+╭──────────────────────────────────────────────────────────────────────────────────────────────────╮
+│ total: 20.6 GB                                  reclaimable: 20.5 GB                             │
+│ selected: 14.4 GB (3 targets)                                    [###############-------]  70.0% │
+│ targets: 679  projects: 169  largest: 12.4 GB                                                    │
+│ dependencies      7.1 GB [######----------] 34.6%                                                │
+│ build            13.4 GB [##########------] 65.4%                                                │
+│ cache             5.9 MB [----------------] <0.1%                                                │
+│ artifacts            0 B [----------------] 0.0%                                                 │
+╰──────────────────────────────────────────────────────────────────────────────────────────────────╯
+ 3 targets selected
+ space select  a all  / search  f filter  s sort  d preview  q quit

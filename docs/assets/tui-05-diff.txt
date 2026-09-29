@@ -1,0 +1,20 @@
+ DevEnvClean                                                                                  0.1.0
+ report comparison
+ /Users/dev/Content
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ net change: +3.7 GB
+ from: 2026-09-01T10:00:00.000Z                   to: 2026-09-29T10:00:00.000Z
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+    +2.2 GB  grew    /Users/dev/Content/OpenResearch/target
+    +276 MB  grew    /Users/dev/Content/CyberStrike/node_modules
+    +157 MB  grew    /Users/dev/Content/2-VSCode-Project/ml-learning-nt/.venv
+   +93.1 MB  grew    /Users/dev/Content/2-VSCode-Project/swarm-ide/backend/.next
+     +86 MB  grew    /Users/dev/Content/my-mc-v2/node_modules
+   +84.5 MB  grew    /Users/dev/Content/learning-quantitative-trading/.venv
+   +72.1 MB  grew    /Users/dev/Content/OpenResearch/ui/node_modules
+   +69.2 MB  grew    /Users/dev/Content/netron/node_modules
+   +44.8 MB  grew    /Users/dev/Content/api-server/dist
+     +22 MB  grew    /Users/dev/Content/dashboard/.cache
+
+ growth since the previous scan
+ q quit  e export

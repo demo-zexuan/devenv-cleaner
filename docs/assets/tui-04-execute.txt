@@ -1,0 +1,20 @@
+ DevEnvClean                                                                                  0.1.0
+ deleting
+ /Users/dev/Content
+ ──────────────────────────────────────────────────────────────────────────────────────────────────
+ Done                                                              [##########################] 9/9
+ +   12.4 GB  /Users/dev/Content/OpenResearch/target
+ +    1.5 GB  /Users/dev/Content/CyberStrike/node_modules
+ +    871 MB  /Users/dev/Content/2-VSCode-Project/ml-learning-nt/.venv
+ +    517 MB  /Users/dev/Content/2-VSCode-Project/swarm-ide/backend/.next
+ +    478 MB  /Users/dev/Content/my-mc-v2/node_modules
+ +    469 MB  /Users/dev/Content/learning-quantitative-trading/.venv
+ +    401 MB  /Users/dev/Content/OpenResearch/ui/node_modules
+ !       0 B  /Users/dev/Content/netron/node_modules                 failed: EACCES: permission de…
+ +    249 MB  /Users/dev/Content/api-server/dist
+ Deleted: 8  Skipped: 0                                                   Freed: 15.7 GB  Failed: 1
+
+
+
+ 1 target failed — the rest completed
+ ctrl-c abort
