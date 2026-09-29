@@ -1,0 +1,107 @@
+name: 🐛 Bug 报告
+description: 报告扫描、清理、配置或报告导出中的异常行为
+title: '[Bug] '
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        感谢反馈。磁盘统计类问题几乎都依赖本机环境，请**务必**附上下面两项命令的输出，
+        否则通常无法复现：
+
+        - `dvc doctor --json`
+        - `dvc scan --json`（如果输出过大，可只贴 `summary` 与 `config` 两段）
+
+        这两项都是只读命令，会暴露你的目录路径，贴出前请自行脱敏。
+        安全相关问题请勿在此公开，见仓库 Security 页面。
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 问题描述
+      description: 你期望发生什么，实际发生了什么。
+      placeholder: 例如：`dvc scan --root ~/dev` 报出的可回收总量明显小于 `du -sh` 的结果。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      description: 请给出可以粘贴执行的完整命令，以及所在的目录。
+      placeholder: |
+        1. cd ~/dev/xxx
+        2. dvc scan --root . --min-size 0
+        3. 观察到 ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: doctor
+    attributes:
+      label: '`dvc doctor --json` 输出'
+      description: 请粘贴完整 JSON。它会说明 Node 版本、终端能力、配置来源、扫描根可读写性与规则状态。
+      render: json
+    validations:
+      required: true
+
+  - type: textarea
+    id: scan
+    attributes:
+      label: '`dvc scan --json` 摘要'
+      description: 请粘贴 `schemaVersion`、`toolVersion`、`config`、`summary` 与相关 `targets` 条目。
+      render: json
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: DevEnvClean 版本
+      description: '`dvc --version` 的输出（或 `dvc scan --json` 中的 `toolVersion`）。'
+      placeholder: 0.1.0
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: 操作系统
+      options:
+        - macOS
+        - Linux
+        - Windows
+        - WSL / 容器
+        - 其他（请在问题描述中说明）
+    validations:
+      required: true
+
+  - type: input
+    id: node
+    attributes:
+      label: Node 版本
+      description: '`node --version` 的输出，要求 >= 22。'
+      placeholder: v22.19.0
+    validations:
+      required: true
+
+  - type: input
+    id: filesystem
+    attributes:
+      label: 相关目录所在文件系统
+      description: 可选。例如 APFS、ext4、网络卷、加密卷、外接盘——挂载点类型经常直接解释统计差异。
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: checks
+    attributes:
+      label: 提交前确认
+      options:
+        - label: 我已搜索过现有 issue，未发现重复。
+          required: true
+        - label: 我附上了 `dvc doctor --json` 与 `dvc scan --json` 的输出。
+          required: true
+        - label: 我已对输出中的个人路径做了脱敏（如需要）。
+          required: true

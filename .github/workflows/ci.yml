@@ -1,0 +1,84 @@
+# Continuous integration for DevEnvClean.
+#
+# Two legs share one matrix so a failure on either platform is visible without
+# duplicating the workflow:
+#
+#   1. ubuntu-latest — the full gate: typecheck, lint, test, build.
+#   2. macos-latest  — `pnpm test` only. DevEnvClean is macOS/Linux first, and
+#      macOS is where the path-safety logic genuinely differs: `/tmp` is a
+#      symlink to `/private/tmp`, so `isProtectedResolvedPath` and the alias
+#      allowance in `src/core/platform.ts` only get real coverage there.
+#
+# The pnpm version is pinned because `package.json` carries no `packageManager`
+# field for `pnpm/action-setup` to read. It matches the toolchain that produced
+# the committed lockfile and the `allowBuilds: esbuild: true` approval in
+# `pnpm-workspace.yaml`; an older pnpm ignores that field and blocks esbuild's
+# postinstall, which breaks `pnpm build` and `pnpm test`.
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+# A superseded push is no longer interesting. Cancel the older run so at most
+# one run per ref occupies a runner.
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+# Read-only checkout is all this workflow needs; it never publishes.
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      # Report both platforms even when one fails, otherwise a macOS-only
+      # failure hides behind a Linux failure and vice versa.
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            name: Linux / full gate
+            fullGate: true
+          - os: macos-latest
+            name: macOS / tests
+            fullGate: false
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 12
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          # Reuses the pnpm store between runs; requires pnpm to be installed
+          # first, which is why this step follows `pnpm/action-setup`.
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Typecheck
+        if: matrix.fullGate
+        run: pnpm typecheck
+
+      - name: Lint
+        if: matrix.fullGate
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
+
+      - name: Build
+        if: matrix.fullGate
+        run: pnpm build
