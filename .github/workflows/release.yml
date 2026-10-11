@@ -1,21 +1,42 @@
-# Release: run the full check gate and publish to npm on a `v*` tag.
+# Release: verify, publish to npm, and open a GitHub Release.
 #
-# Triggering is deliberately narrow — `push` on a `v*` tag only — and every
-# publishing step additionally asserts `startsWith(github.ref, 'refs/tags/v')`,
-# so a `workflow_dispatch` run on a branch exercises the gate without touching
-# the registry.
+# ---------------------------------------------------------------------------
+# Triggering
 #
-# Provenance note: `--provenance` is intentionally NOT used here. npm's
-# attestation requires a `repository` field in `package.json`, and this package
-# does not declare one yet, so the flag would fail the publish. Because nothing
-# needs an OIDC token, `id-token` is not requested either and the workflow keeps
-# the single `contents: read` permission.
+#   * Pushing a `v*` tag performs a real release.
+#   * `workflow_dispatch` is a rehearsal: it runs the identical gate, packs the
+#     real tarball and exercises `npm publish --dry-run`, but the publish and
+#     release steps are unreachable because they require a tag ref.
 #
-# The pnpm version is pinned because `package.json` carries no `packageManager`
-# field for `pnpm/action-setup` to read. It matches the toolchain that produced
-# the committed lockfile and the `allowBuilds: esbuild: true` approval in
-# `pnpm-workspace.yaml`; an older pnpm ignores that field and blocks esbuild's
-# postinstall, which breaks `pnpm build` and `pnpm test`.
+# Releasing is therefore a two-command operation:
+#
+#   pnpm version patch        # or minor / major; writes the commit and the tag
+#   git push --follow-tags
+#
+# The version in `package.json` and the tag name are checked against each other
+# before anything is uploaded, because npm refuses to reuse a version and a
+# mismatch would only surface after the release commit was already public.
+#
+# ---------------------------------------------------------------------------
+# Authentication
+#
+# `NPM_TOKEN` is an npm automation/granular token with publish rights on
+# `devenv-cleaner`, stored as a repository secret. `setup-node` writes an
+# `.npmrc` that reads it from `NODE_AUTH_TOKEN`, so no token is ever echoed into
+# the log or written into the workspace.
+#
+# Prefer trusted publishing once it is configured: add this repository and the
+# `release.yml` filename as a trusted publisher on npmjs.com, then delete the
+# `NPM_TOKEN` secret and the `NODE_AUTH_TOKEN` line below. With OIDC no
+# long-lived credential exists to leak, and provenance is still produced.
+#
+# ---------------------------------------------------------------------------
+# Provenance
+#
+# `--provenance` attaches a signed attestation linking the tarball to this
+# commit and this workflow, which is what lets a consumer run
+# `npm audit signatures`. It requires `id-token: write` and a `repository` field
+# in `package.json`; both are present.
 
 name: Release
 
@@ -23,52 +44,57 @@ on:
   push:
     tags:
       - 'v*'
-  # Manual fallback: re-runs the gate on any ref. A dispatch on a branch never
-  # satisfies the tag guard below, so it publishes nothing.
+  # Rehearsal only. A dispatch on a branch never satisfies the tag guard, so it
+  # cannot publish even though it runs every other step for real.
   workflow_dispatch:
 
 concurrency:
   group: release-${{ github.ref }}
-  # A release is never superseded: let an in-flight publish finish rather than
-  # cancelling it halfway through an upload.
+  # A release is never superseded: cancelling a publish midway could leave the
+  # registry holding a partially uploaded tarball.
   cancel-in-progress: false
 
 permissions:
-  contents: read
+  # `contents: write` creates the GitHub Release; `id-token: write` mints the
+  # OIDC token npm exchanges for a provenance attestation.
+  contents: write
+  id-token: write
 
 jobs:
   release:
     name: Verify and publish
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    # `env` at job level so the publish step's `if` can see the secret's
-    # presence; step-level `env` is not in scope for that step's own `if`.
+    # Job-level `env` so the publish step's `if` can see whether the secret
+    # exists; step-level `env` is not in scope for that step's own condition.
     env:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
     steps:
       - name: Check out the repository
         uses: actions/checkout@v4
+        with:
+          # Full history and tags: the GitHub Release notes are generated from
+          # the commits since the previous tag.
+          fetch-depth: 0
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 12
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-          # Writes an .npmrc that reads the auth token from NODE_AUTH_TOKEN,
-          # which every package manager in the runner then honours.
+          # Writes an .npmrc whose auth token is read from NODE_AUTH_TOKEN.
           registry-url: https://registry.npmjs.org
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      # The full gate, exactly as CI runs it. `pnpm publish` also triggers the
-      # package's own `prepublishOnly: pnpm check`, so this is belt-and-braces:
-      # a red gate is reported before the tag is ever considered.
+      # ---------------------------------------------------------------------
+      # Gate: the same commands CI runs, so a red build is reported before the
+      # release is considered rather than halfway through an upload.
+      # ---------------------------------------------------------------------
       - name: Typecheck
         run: pnpm typecheck
 
@@ -81,11 +107,89 @@ jobs:
       - name: Build
         run: pnpm build
 
+      - name: Verify the publishable artifact
+        run: pnpm verify:package
+
+      # ---------------------------------------------------------------------
+      # Tag and version must agree.
+      # ---------------------------------------------------------------------
+      - name: Check the tag matches the package version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          tag_version="${GITHUB_REF_NAME#v}"
+          pkg_version="$(node -p "require('./package.json').version")"
+          echo "tag=$tag_version package=$pkg_version"
+          if [ "$tag_version" != "$pkg_version" ]; then
+            echo "::error::tag v$tag_version does not match package.json version $pkg_version"
+            exit 1
+          fi
+          echo "version=$pkg_version" >> "$GITHUB_ENV"
+          echo "### Release v$pkg_version" >> "$GITHUB_STEP_SUMMARY"
+
+      # ---------------------------------------------------------------------
+      # Rehearsal: exercise the exact packaging path without uploading.
+      # ---------------------------------------------------------------------
+      - name: Publish (dry run)
+        if: github.event_name == 'workflow_dispatch'
+        run: pnpm publish --dry-run --no-git-checks
+
+      # ---------------------------------------------------------------------
+      # The real release.
+      # ---------------------------------------------------------------------
       - name: Publish to npm
-        # Two guards: the ref must be a version tag, and NPM_TOKEN must exist.
-        # Without the token the step is skipped rather than failing the run,
-        # which keeps a fork or a token-less environment usable as a dry run.
+        id: publish
         if: startsWith(github.ref, 'refs/tags/v') && env.NPM_TOKEN != ''
-        run: pnpm publish --access public --no-git-checks
+        run: pnpm publish --access public --no-git-checks --provenance
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+      - name: Note a skipped publish
+        if: startsWith(github.ref, 'refs/tags/v') && env.NPM_TOKEN == ''
+        run: |
+          echo "::warning::NPM_TOKEN is not set; the artifact was verified but not published."
+          echo "Add the repository secret, then re-run this workflow or push a new tag." >> "$GITHUB_STEP_SUMMARY"
+
+      # ---------------------------------------------------------------------
+      # Prove the registry actually serves what was just uploaded. Propagation
+      # is usually fast but not instant, so this retries rather than flaking.
+      # ---------------------------------------------------------------------
+      - name: Verify the published version is fetchable
+        if: steps.publish.conclusion == 'success'
+        run: |
+          set -euo pipefail
+          version="$(node -p "require('./package.json').version")"
+          for attempt in 1 2 3 4 5 6; do
+            published="$(npm view "devenv-cleaner@${version}" version 2>/dev/null || true)"
+            if [ "$published" = "$version" ]; then
+              echo "registry serves devenv-cleaner@$version"
+              exit 0
+            fi
+            echo "attempt $attempt: registry has not caught up yet"
+            sleep 10
+          done
+          echo "::error::devenv-cleaner@$version was not retrievable from the registry"
+          exit 1
+
+      # ---------------------------------------------------------------------
+      # GitHub Release, with the exact tarball npm received attached.
+      # ---------------------------------------------------------------------
+      - name: Pack the release tarball
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
+          npm pack --pack-destination artifacts >/dev/null
+          ls -l artifacts
+
+      - name: Create the GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh release create "$GITHUB_REF_NAME" \
+            --title "$GITHUB_REF_NAME" \
+            --generate-notes \
+            --verify-tag \
+            artifacts/*.tgz

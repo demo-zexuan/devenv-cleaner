@@ -1,19 +1,24 @@
 # Continuous integration for DevEnvClean.
 #
-# Two legs share one matrix so a failure on either platform is visible without
-# duplicating the workflow:
+# Three jobs, deliberately separate so a failure names the thing that broke:
 #
-#   1. ubuntu-latest — the full gate: typecheck, lint, test, build.
-#   2. macos-latest  — `pnpm test` only. DevEnvClean is macOS/Linux first, and
-#      macOS is where the path-safety logic genuinely differs: `/tmp` is a
-#      symlink to `/private/tmp`, so `isProtectedResolvedPath` and the alias
-#      allowance in `src/core/platform.ts` only get real coverage there.
+#   1. `check`   — the test gate, on two platforms via one matrix.
+#   2. `package` — proves the *publishable artifact* works, not just the source.
 #
-# The pnpm version is pinned because `package.json` carries no `packageManager`
-# field for `pnpm/action-setup` to read. It matches the toolchain that produced
-# the committed lockfile and the `allowBuilds: esbuild: true` approval in
-# `pnpm-workspace.yaml`; an older pnpm ignores that field and blocks esbuild's
-# postinstall, which breaks `pnpm build` and `pnpm test`.
+# Why two platforms: DevEnvClean is macOS/Linux first, and macOS is where the
+# path-safety logic genuinely differs — `/tmp` is a symlink to `/private/tmp`,
+# so `isProtectedResolvedPath` and the alias allowance in `src/core/platform.ts`
+# only get real coverage there. The reverse also holds: the case-folding and
+# `/tmp`-alias assumptions that a macOS-only suite silently bakes in are caught
+# only on Linux.
+#
+# Why an artifact job: every other job imports `src/**` directly. A path missing
+# from the `files` field, a dependency left in `devDependencies`, or a lost
+# shebang is invisible to them and breaks only for a consumer.
+#
+# The pnpm version comes from the `packageManager` field in `package.json`, which
+# `pnpm/action-setup` reads, so the runner cannot drift from the toolchain that
+# produced the committed lockfile.
 
 name: CI
 
@@ -54,8 +59,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 12
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
@@ -82,3 +85,32 @@ jobs:
       - name: Build
         if: matrix.fullGate
         run: pnpm build
+
+  package:
+    name: Package artifact
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v4
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build
+        run: pnpm build
+
+      # Packs the tarball, inspects its contents, then installs it into a
+      # throwaway project and runs the real binary. This is the only job that
+      # exercises what a user actually downloads.
+      - name: Verify the publishable artifact
+        run: pnpm verify:package
