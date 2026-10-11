@@ -33,7 +33,6 @@ import {
   type ResolvedConfig,
   type ScanReport,
   scan,
-  summarizePlan,
   type TargetLayer,
 } from '../core/index.js';
 
@@ -198,18 +197,23 @@ function describeEmptyPlan(plan: PlanResult, noColor: boolean): string {
 /**
  * Print the plan preview table.
  *
+ * I. Why there is no summary line here
+ *
+ * 1. `formatPlanPreview` already ends with the totals row, so printing
+ *    `summarizePlan` underneath repeated the same sentence verbatim — the kind
+ *    of duplication that makes a user wonder whether two different numbers are
+ *    being reported.
+ *
  * @param plan - The plan.
  * @param options - Command options.
  */
 function printPreview(plan: CleanPlan, options: CleanCommandOptions): void {
   const bold = options.noColor ? (value: string): string => value : pc.bold;
-  const green = options.noColor ? (value: string): string => value : pc.green;
 
   process.stdout.write(
     `\n${bold('cleanup preview')} ${formatBytes(plan.totalBytes)} across ${plan.targets.length} target(s)\n\n`,
   );
   process.stdout.write(`${formatPlanPreview(plan, { width: options.width, maxRows: 0 })}\n`);
-  process.stdout.write(`\n${green(summarizePlan(plan))}\n`);
 }
 
 /**
