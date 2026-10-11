@@ -140,12 +140,51 @@ jobs:
       - name: Publish to npm
         id: publish
         if: startsWith(github.ref, 'refs/tags/v') && env.NPM_TOKEN != ''
-        run: pnpm publish --access public --no-git-checks --provenance
+        # The failure is captured rather than surfaced raw so the next step can
+        # translate it into the one action a maintainer has to take. A bare
+        # `ERR_PNPM_OTP_NON_INTERACTIVE` in a 2000-line job log reads as a tool
+        # bug; it is actually an account setting.
+        continue-on-error: true
+        shell: bash
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          set -o pipefail
+          pnpm publish --access public --no-git-checks --provenance 2>&1 | tee "${RUNNER_TEMP}/publish.log"
+
+      - name: Explain a failed publish
+        if: steps.publish.outcome == 'failure'
+        shell: bash
+        run: |
+          set -euo pipefail
+          log="${RUNNER_TEMP}/publish.log"
+
+          if grep -q 'ERR_PNPM_OTP_NON_INTERACTIVE' "$log"; then
+            {
+              echo "### Publish blocked by two-factor authentication"
+              echo
+              echo "\`NPM_TOKEN\` is a token with \`bypass_2fa: false\`, and the npm account requires"
+              echo "2FA for writes, so the registry asked for a one-time password that CI cannot supply."
+              echo
+              echo "**Fix (choose one):**"
+              echo
+              echo "1. Create a token that may bypass 2FA — npmjs.com → Access Tokens →"
+              echo "   Generate New Token → **Granular**, with **Bypass 2FA** enabled"
+              echo "   (a Classic **Automation** token also bypasses 2FA) — then update the"
+              echo "   \`NPM_TOKEN\` secret and re-run this job. No new tag is needed."
+              echo "2. Configure npm **trusted publishing** for this repository and"
+              echo "   \`release.yml\`; then no token exists to configure at all."
+            } >> "$GITHUB_STEP_SUMMARY"
+            echo "::error::npm requires a one-time password (token has bypass_2fa: false). See the job summary for the two fixes."
+          elif grep -qE 'E401|E403|ERR_PNPM_AUTH' "$log"; then
+            echo "::error::npm rejected the credentials or the token lacks publish rights on this package. See the job log."
+          else
+            echo "::error::the publish failed for a reason not covered by the known cases; see the job log."
+          fi
+          exit 1
 
       - name: Note a skipped publish
-        if: startsWith(github.ref, 'refs/tags/v') && env.NPM_TOKEN == ''
+        if: steps.publish.outcome == 'skipped'
         run: |
           echo "::warning::NPM_TOKEN is not set; the artifact was verified but not published."
           echo "Add the repository secret, then re-run this workflow or push a new tag." >> "$GITHUB_STEP_SUMMARY"
@@ -155,7 +194,11 @@ jobs:
       # is usually fast but not instant, so this retries rather than flaking.
       # ---------------------------------------------------------------------
       - name: Verify the published version is fetchable
-        if: steps.publish.conclusion == 'success'
+        # `outcome`, not `conclusion`: `continue-on-error` above reports the
+        # conclusion as a success even when the publish itself failed, so
+        # checking the conclusion would query the registry for a version that
+        # was never uploaded.
+        if: steps.publish.outcome == 'success'
         run: |
           set -euo pipefail
           version="$(node -p "require('./package.json').version")"
@@ -175,7 +218,10 @@ jobs:
       # GitHub Release, with the exact tarball npm received attached.
       # ---------------------------------------------------------------------
       - name: Pack the release tarball
-        if: startsWith(github.ref, 'refs/tags/v')
+        # Gated on the publish, not just on the tag: an explicit `if` replaces
+        # the implicit "previous steps succeeded" guard, so tagging alone would
+        # announce a release for a version npm never received.
+        if: steps.publish.outcome == 'success'
         run: |
           set -euo pipefail
           mkdir -p artifacts
@@ -183,7 +229,7 @@ jobs:
           ls -l artifacts
 
       - name: Create the GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
+        if: steps.publish.outcome == 'success'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |

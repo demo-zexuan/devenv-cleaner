@@ -318,7 +318,15 @@ git push --follow-tags
 
 | 名称 | 用途 |
 | --- | --- |
-| `NPM_TOKEN` | npm granular / automation token，对 `devenv-cleaner` 有 publish 权限 |
+| `NPM_TOKEN` | npm token，对 `devenv-cleaner` 有 publish 权限 |
+
+**这个 token 必须能绕过 2FA。** 如果账号开启了 auth-and-writes 两步验证，普通 granular token（`bypass_2fa: false`）会让 registry 在发布时索要一次性验证码，而 CI 无法输入，失败表现为 `ERR_PNPM_OTP_NON_INTERACTIVE`。可行选项：
+
+- granular token 并勾选 **Bypass 2FA**，或
+- Classic → **Automation** token（设计上即绕过 2FA），或
+- 改用下面的 trusted publishing（无需任何 token）。
+
+发布步骤失败时会读取日志并把上述处置方式写进 job summary，不需要从上千行日志里猜。
 
 未配置该密钥时，标签触发的运行仍然会完成门禁与产物验证，但会**跳过发布并给出 warning**，不会把发布失败伪装成成功。
 
