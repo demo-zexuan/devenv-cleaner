@@ -18,6 +18,7 @@
   "engines": {
     "node": ">=22"
   },
+  "packageManager": "pnpm@12.6.0",
   "bin": {
     "dvc": "./dist/cli.js",
     "devenv-cleaner": "./dist/cli.js"
@@ -36,6 +37,17 @@
     "README.md",
     "LICENSE"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/demo-zexuan/devenv-cleaner.git"
+  },
+  "homepage": "https://github.com/demo-zexuan/devenv-cleaner#readme",
+  "bugs": {
+    "url": "https://github.com/demo-zexuan/devenv-cleaner/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "scripts": {
     "build": "tsup",
     "dev": "tsup --watch",
@@ -49,8 +61,9 @@
     "format": "biome format --write .",
     "check": "pnpm typecheck && pnpm lint && pnpm test && pnpm build",
     "prepublishOnly": "pnpm check",
-    "prepare": "husky || true",
-    "frames": "tsx scripts/capture-frames.tsx"
+    "frames": "tsx scripts/capture-frames.tsx",
+    "verify:package": "tsx scripts/verify-package.ts",
+    "release:dry": "npm publish --dry-run --cache .npm-cache"
   },
   "dependencies": {
     "commander": "^15.0.0",
