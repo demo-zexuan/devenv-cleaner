@@ -23,7 +23,8 @@
  * @created 2026-09-29
  */
 
-import { pathToFileURL } from 'node:url';
+import { realpathSync } from 'node:fs';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Command } from 'commander';
 import pc from 'picocolors';
 import { cleanExitCode, runClean } from '../commands/clean.js';
@@ -651,14 +652,42 @@ export async function main(argv: readonly string[] = process.argv): Promise<numb
   return process.exitCode === undefined ? EXIT.success : Number(process.exitCode);
 }
 
-// III. Run when executed as a program rather than imported by a test. The
-//      comparison goes through `pathToFileURL` so a path containing spaces or a
-//      Windows drive letter still matches, which naive string concatenation
-//      would get wrong.
-const entryPoint = process.argv[1];
-const invokedDirectly = entryPoint !== undefined && import.meta.url === pathToFileURL(entryPoint).href;
+/**
+ * Decide whether this module is the program being run.
+ *
+ * I. Why the naive comparison is not enough
+ *
+ * 1. Every package manager installs a `bin` as a **symlink**:
+ *    `node_modules/.bin/dvc -> ../devenv-cleaner/dist/cli.js`. Node reports
+ *    `process.argv[1]` as the path that was invoked — the symlink — while
+ *    `import.meta.url` is the *resolved* file URL. The two strings therefore
+ *    never match for an installed package, and comparing them directly makes the
+ *    binary exit silently with status 0 while `node dist/cli.js` works fine.
+ * 2. That failure is invisible in development, because a developer runs the
+ *    real path, and invisible to the unit tests, which import `main` directly.
+ *    It only appears for a user who installed the package — which is why the
+ *    artifact check in `scripts/verify-package.ts` executes the linked binary
+ *    rather than the file it points at.
+ * 3. Both sides are therefore resolved to their real path before comparing.
+ *    The fallback covers the case where `argv[1]` cannot be resolved (a deleted
+ *    entry point, an exotic loader) and keeps the comparison meaningful there.
+ *
+ * @returns True when this module is the process entry point.
+ */
+function isDirectInvocation(): boolean {
+  const entryPoint = process.argv[1];
+  if (entryPoint === undefined) return false;
 
-if (invokedDirectly) {
+  try {
+    return realpathSync(fileURLToPath(import.meta.url)) === realpathSync(entryPoint);
+  } catch {
+    // `pathToFileURL` normalizes a path containing spaces or a Windows drive
+    // letter, which naive string concatenation would get wrong.
+    return import.meta.url === pathToFileURL(entryPoint).href;
+  }
+}
+
+if (isDirectInvocation()) {
   main()
     .then((code) => {
       process.exitCode = code;
