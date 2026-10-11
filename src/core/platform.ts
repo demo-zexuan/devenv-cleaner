@@ -99,6 +99,14 @@ const WIN32_DENYLIST: readonly string[] = [
  * frequently `~` itself, and a broad rule pattern must not reach a user's
  * documents, photos or source of truth.
  */
+/**
+ * macOS protects these under the home directory.
+ *
+ * The list is also applied on Linux. Those `Library/...` entries are inert
+ * there because the directories do not exist, and an inert entry costs nothing
+ * while a missing one is a deletion; keeping the lists shared means a Linux
+ * machine that happens to hold a restored `~/Library` still protects it.
+ */
 const USER_DATA_DENYLIST_POSIX: readonly string[] = [
   'Desktop',
   'Documents',

@@ -38,6 +38,15 @@ import { SAMPLE_ROOT, TESTS_DIR, WORKSPACE_ROOT } from './helpers.js';
 
 const POSIX_ONLY = getPlatform() !== 'win32';
 
+/**
+ * The `/tmp` -> `/private/tmp` symlink is a macOS property.
+ *
+ * Gating it on "POSIX" was wrong: Linux is POSIX too, but `/tmp` is a real
+ * directory there, so the assertion only ever held on the machine it was
+ * written on and failed the moment CI ran it on Linux.
+ */
+const DARWIN_ONLY = getPlatform() === 'darwin';
+
 describe('getDenylist', () => {
   it('always contains the filesystem root and the system prefixes', () => {
     const denylist = getDenylist();
@@ -49,9 +58,13 @@ describe('getDenylist', () => {
   it('adds the user-data directories below the home directory', () => {
     const home = normalizeForCompare(getHome());
     const denylist = getDenylist();
-    expect(denylist).toContain(`${home}/documents`);
-    expect(denylist).toContain(`${home}/desktop`);
-    expect(denylist).toContain(`${home}/library/keychains`);
+    // Entries are published in the *platform's* normalized form, and only macOS
+    // and Windows fold case. Hardcoding a lowercase literal made this pass on a
+    // developer laptop and fail on Linux CI, where the case is preserved.
+    const below = (segment: string): string => `${home}/${normalizeForCompare(segment)}`;
+    expect(denylist).toContain(below('Documents'));
+    expect(denylist).toContain(below('Desktop'));
+    expect(denylist).toContain(below('Library/Keychains'));
   });
 
   it('marks every entry it publishes as protected', () => {
@@ -250,7 +263,17 @@ describe('findContainingRoot', () => {
   it('answers in the normalized form of the winning root', () => {
     // Containment is a string comparison, so the answer must be in the same
     // form as the comparison; the caller uses it to classify, not to delete.
-    expect(findContainingRoot('/A/B/C', ['/a/b/'])).toBe(normalizeForCompare('/a/b/'));
+    expect(findContainingRoot('/a/b/c', ['/a/b/'], 'linux')).toBe(normalizeForCompare('/a/b/', 'linux'));
+  });
+
+  it('folds case only on the platforms whose filesystems do', () => {
+    // Case folding belongs to the *target platform*, not to whatever machine is
+    // running the suite. Asserting the host default made this pass on a
+    // developer laptop and fail in Linux CI, which is exactly the trap this
+    // explicit-platform form avoids.
+    expect(findContainingRoot('/A/B/C', ['/a/b/'], 'darwin')).toBe(normalizeForCompare('/a/b/', 'darwin'));
+    expect(findContainingRoot('/A/B/C', ['/a/b/'], 'win32')).toBe(normalizeForCompare('/a/b/', 'win32'));
+    expect(findContainingRoot('/A/B/C', ['/a/b/'], 'linux')).toBeNull();
   });
 });
 
@@ -298,7 +321,7 @@ describe('canonicalizeRoots', () => {
     expect(roots[1]).toBe(WORKSPACE_ROOT);
   });
 
-  it.skipIf(!POSIX_ONLY)('resolves the macOS /tmp alias to /private/tmp', async () => {
+  it.skipIf(!DARWIN_ONLY)('resolves the macOS /tmp alias to /private/tmp', async () => {
     const roots = await canonicalizeRoots(['/tmp']);
     expect(roots[0]).toBe('/private/tmp');
   });
