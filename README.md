@@ -2,6 +2,10 @@
 
 > **`dvc` — 扫描并选择性回收开发缓存、依赖与构建产物占用的磁盘空间。**
 
+[![CI](https://github.com/demo-zexuan/devenv-cleaner/actions/workflows/ci.yml/badge.svg)](https://github.com/demo-zexuan/devenv-cleaner/actions/workflows/ci.yml)
+[![npm](https://img.shields.io/npm/v/devenv-cleaner.svg)](https://www.npmjs.com/package/devenv-cleaner)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 macOS / Linux 优先 · Node.js >= 22 · MIT
 
 下面这段是**本仓库构建产物 `dist/cli.js` 的真实输出**（在一个临时目录上运行，`--no-color` 便于复制）：

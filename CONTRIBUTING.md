@@ -282,6 +282,58 @@ rule({
 
 ---
 
-## VIII. 许可
+## VIII. 发布流程（CI/CD）
+
+发布完全由 CI 驱动，本地不需要（也不应该）手动执行 `npm publish`。
+
+### 1. 两条流水线
+
+| 工作流 | 触发 | 做什么 |
+| --- | --- | --- |
+| [.github/workflows/ci.yml](.github/workflows/ci.yml) | 每次 push 与 PR | `check`：Linux 跑完整门禁（typecheck/lint/test/build），macOS 跑测试；`package`：打包并验证**将要发布的产物** |
+| [.github/workflows/release.yml](.github/workflows/release.yml) | 推送 `v*` 标签 | 全量门禁 → 校验标签与版本号一致 → 验证产物 → 发布到 npm（带 provenance）→ 回查 registry → 创建 GitHub Release 并附上 npm 实际收到的 tarball |
+
+### 2. 发一个版本
+
+```bash
+pnpm version patch        # 或 minor / major：自动写入 commit 与 tag
+git push --follow-tags
+```
+
+之后不需要人工干预。工作流会拒绝「标签与 `package.json` 版本不一致」的情况——npm 不允许复用版本号，若不在此处拦截，问题只会在 release commit 已经公开之后才暴露。
+
+### 3. 预演
+
+在 Actions 页面手动触发 `Release`（`workflow_dispatch`）即可空跑一遍：门禁、打包、`npm publish --dry-run` 全部真实执行，但**不会上传**。发布步骤只在 `refs/tags/v*` 上可达。
+
+### 4. 为什么要有 `package` 作业
+
+其余作业都直接 import `src/**`，因此「产物」层面的缺陷对它们完全不可见：`files` 字段漏了一个路径、运行时依赖被写进 `devDependencies`、`bin` 丢失 shebang 或可执行位。这类问题只对安装了这个包的用户暴露。
+
+`pnpm verify:package`（[scripts/verify-package.ts](scripts/verify-package.ts)）做两段验证：先离线检查 tarball 的条目、shebang 与 `bin` 目标，再**真的把 tarball 装进一个临时工程并执行链接出来的 `dvc`**。加 `--offline` 可跳过需要网络的后半段。
+
+这个作业不是形式主义：它在首次配置时就拦下了一个会让发布包完全不可用的缺陷——包管理器把 `bin` 安装成符号链接 `node_modules/.bin/dvc -> ../devenv-cleaner/dist/cli.js`，而 CLI 原先用 `import.meta.url === pathToFileURL(process.argv[1])` 判断「是否被直接执行」。对符号链接而言这两个字符串永不相等，于是命令行静默退出且返回码为 0；`node dist/cli.js` 一切正常，单元测试也全部通过。只有「安装后执行」才能发现它。
+
+### 5. 需要配置的密钥
+
+| 名称 | 用途 |
+| --- | --- |
+| `NPM_TOKEN` | npm granular / automation token，对 `devenv-cleaner` 有 publish 权限 |
+
+未配置该密钥时，标签触发的运行仍然会完成门禁与产物验证，但会**跳过发布并给出 warning**，不会把发布失败伪装成成功。
+
+### 6. 升级到 trusted publishing（推荐）
+
+上面的 token 是长期凭证。更安全的做法是改用 npm 的 OIDC trusted publishing，不再存在可泄露的密钥：
+
+1. 在 npmjs.com 上为该包添加 trusted publisher：repository 填本仓库，workflow filename 填 `release.yml`。
+2. 删除仓库里的 `NPM_TOKEN` secret。
+3. 移除 `release.yml` 中发布步骤的 `env: NODE_AUTH_TOKEN:` 一行。
+
+`id-token: write` 与 `--provenance` 保持不动——provenance 与用哪种认证方式无关，consumer 仍然可以 `npm audit signatures` 验证 tarball 确实由本仓库的这次提交构建。
+
+---
+
+## IX. 许可
 
 提交即表示你同意以 [MIT License](LICENSE) 授权你的贡献，并同意遵守上面的 DCO 签名要求。
