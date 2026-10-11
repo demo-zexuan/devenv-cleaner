@@ -314,31 +314,28 @@ git push --follow-tags
 
 这个作业不是形式主义：它在首次配置时就拦下了一个会让发布包完全不可用的缺陷——包管理器把 `bin` 安装成符号链接 `node_modules/.bin/dvc -> ../devenv-cleaner/dist/cli.js`，而 CLI 原先用 `import.meta.url === pathToFileURL(process.argv[1])` 判断「是否被直接执行」。对符号链接而言这两个字符串永不相等，于是命令行静默退出且返回码为 0；`node dist/cli.js` 一切正常，单元测试也全部通过。只有「安装后执行」才能发现它。
 
-### 5. 需要配置的密钥
+### 5. 认证：优先 trusted publishing
 
-| 名称 | 用途 |
-| --- | --- |
-| `NPM_TOKEN` | npm token，对 `devenv-cleaner` 有 publish 权限 |
+**本仓库当前使用 npm trusted publishing，不需要任何密钥。** 首次发布前需要配置一次：
 
-**这个 token 必须能绕过 2FA。** 如果账号开启了 auth-and-writes 两步验证，普通 granular token（`bypass_2fa: false`）会让 registry 在发布时索要一次性验证码，而 CI 无法输入，失败表现为 `ERR_PNPM_OTP_NON_INTERACTIVE`。可行选项：
+```bash
+npm trust github devenv-cleaner --file release.yml \
+  --repo demo-zexuan/devenv-cleaner --allow-publish
+```
 
-- granular token 并勾选 **Bypass 2FA**，或
-- Classic → **Automation** token（设计上即绕过 2FA），或
-- 改用下面的 trusted publishing（无需任何 token）。
+这条命令修改的是账号级设置，npm 会要求你在浏览器里完成一次认证，因此无法在 CI 里无人值守执行。
 
-发布步骤失败时会读取日志并把上述处置方式写进 job summary，不需要从上千行日志里猜。
+配置完成后，GitHub 为 `release.yml` 签发 OIDC token，npm 把它换成一次性的发布凭证：仓库里不存任何长期凭证，也没有可泄露的 secret。
 
-未配置该密钥时，标签触发的运行仍然会完成门禁与产物验证，但会**跳过发布并给出 warning**，不会把发布失败伪装成成功。
+### 6. 备用：访问令牌
 
-### 6. 升级到 trusted publishing（推荐）
+若未配置 trusted publishing，可以退回到 `NPM_TOKEN` secret。**该 token 必须能绕过 2FA**：账号开启了 write 操作的强制两步验证时，普通 granular token（`bypass_2fa: false`）会被 registry 索要一次性验证码，而 CI 无法输入，表现为 `ERR_PNPM_OTP_NON_INTERACTIVE`。可行做法是使用勾选了 **Bypass 2FA** 的 granular token，或 Classic 的 **Automation** token。
 
-上面的 token 是长期凭证。更安全的做法是改用 npm 的 OIDC trusted publishing，不再存在可泄露的密钥：
+发布步骤失败时会读取日志判断属于哪种情形（OTP / OIDC 未配置 / 权限不足），并把对应的处置步骤写进 job summary，不需要从上千行日志里翻找。
 
-1. 在 npmjs.com 上为该包添加 trusted publisher：repository 填本仓库，workflow filename 填 `release.yml`。
-2. 删除仓库里的 `NPM_TOKEN` secret。
-3. 移除 `release.yml` 中发布步骤的 `env: NODE_AUTH_TOKEN:` 一行。
+### 7. 为什么没有 token 也不会「假装成功」
 
-`id-token: write` 与 `--provenance` 保持不动——provenance 与用哪种认证方式无关，consumer 仍然可以 `npm audit signatures` 验证 tarball 确实由本仓库的这次提交构建。
+两个发布步骤互斥：没有 `NPM_TOKEN` 时走 OIDC，有则走令牌，绝不会因为缺少凭证而静默跳过。若两者都不可用，`note a skipped publish` 会给出 warning，且后续的 registry 回查与 GitHub Release 都以发布成功为前提，不会为一个从未上传的版本发公告。
 
 ---
 
