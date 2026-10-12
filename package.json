@@ -1,6 +1,6 @@
 {
   "name": "devenv-cleaner",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Scan and selectively reclaim disk space taken by development caches, dependencies and build outputs",
   "keywords": [
     "cli",
